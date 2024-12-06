@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import executionTable.ExecutionEntry;
+import reservation_tables.Point;
 
 public class LoadBuffers {
     private List<LoadBuffer> loadBuffers; // List to hold all the LoadBuffer objects
@@ -44,4 +45,14 @@ public class LoadBuffers {
             System.out.println(buffer);
         }
     }
+    public int getFirstEmpty() {
+		for(int i=0;i<loadBuffers.size();i++) {
+			if(!loadBuffers.get(i).getBusy())return i;
+		}
+		return -1;
+	}
+    public void add(int i,Point p) {
+		loadBuffers.get(i).add(p);
+	}
+ 
 }

@@ -34,15 +34,24 @@ public class mipsReader {
 	    public Instruction parseInstruction(String line) {
 	        // Split the instruction by spaces
 	        String[] parts = line.split("\\s+");
-	        if (parts.length != 4) {
+	        
+	        String operation = null,destination = null,source1 = null,source2=null;
+	        if (parts.length > 4||parts.length < 3) {
 	            return null; // Invalid format
 	        }
-
-	        String operation = parts[0];
-	        String destination = parts[1];
-	        String source1 = parts[2];
-	        String source2 = parts[3];
-
+	        if (parts.length == 3) {
+		         operation = parts[0];
+		         destination = parts[1];
+		         source1 = parts[2];
+		         source2 = null;
+	        }
+	        if (parts.length == 4) {
+		         operation = parts[0];
+		         destination = parts[1];
+		         source1 = parts[2];
+		         source2 = parts[3];
+		        
+	        }
 	        // Create and return a new Instruction object
 	        return new Instruction(operation, destination, source1, source2);
 	    }
