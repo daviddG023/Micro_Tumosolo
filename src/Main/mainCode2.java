@@ -202,48 +202,77 @@ public class mainCode2 {
 
     		    if (index == -1) {
     		        // If no StoreBuffer is available, re-add the instruction to the queue
-    		    	if(op.equals("LD")) {
-        				LoadBuffer r2 =new LoadBuffer("Load");
-        				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-                		queue.add(r2);
-    				}else if(op.equals("ADD")||op.equals("MUL")) {
-    					ReservationStation r2 =new ReservationStation(op);
-    	        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-    	        		queue.add(r2);
-    				}else if (op.equals("SD")) {
-    	    		        StoreBuffer r2 = new StoreBuffer("Store");
-    	    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-    	    		        queue.add(r2);//add then then other store and normal     			
-    				}
+    		        if (op.equals("LD")) {
+    		            LoadBuffer r2 = new LoadBuffer("Load");
+    		            r2.setAll(busy, a, Time, pos, op); // vK will be its address
+    		            queue.add(r2);
+    		        } else if (op.equals("ADD") || op.equals("MUL")) {
+    		            ReservationStation r2 = new ReservationStation(op);
+    		            r2.setAll(busy, op, vj, vk, qj, qk, a, Time, pos);
+    		            queue.add(r2);
+    		        } else if (op.equals("SD")) {
+    		            StoreBuffer r2 = new StoreBuffer("Store");
+    		            r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
+    		            queue.add(r2); // Add the instruction back to the queue
+    		        }
     		        return;
     		    }
 
     		    ready = false; // Mark as not ready to avoid multiple issues
-    		    System.out.println("THis is the besy pos"+r.getPos());
-    		    Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+
+    		    // Check for dependencies
+    		    boolean qjFound = r.getQ() != null 
+    		                      && checkRegisterExists(r.getQ()) 
+    		                      && !regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().equals("S" + (index + 1));
+    		    System.out.println("Dependency (qjFound): " + qjFound);
+
+    		    if (qjFound) {
+    		        // Set dependency for StoreBuffer
+    		        Stations.get(index).setAll(r.getBusy(), r.getA(), null, regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi(), r.getTime(), r.getPos(), r.getOp());
+
+    		        // Determine if the dependency comes from a LoadBuffer or ReservationStation
+    		        ReservationStations rr = null;
+    		        LoadBuffers loadBufferForQ = null;
+
+    		        if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("M")) {
+    		            rr = mulStations;
+    		        } else if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("L")) {
+    		            loadBufferForQ = loadBuffers;
+    		        } else {
+    		            rr = addStations; // Dependency on ADD
+    		        }
+
+    		        int indexQ = Integer.parseInt(regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(1));
+    		        if (loadBufferForQ != null) {
+    		            loadBufferForQ.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+    		        } else if (rr != null) {
+    		            rr.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+    		        }
+    		    } else {
+    		        // If no dependency is found, set the StoreBuffer with the provided values
+    		        Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+    		    }
 
     		    queue.remove(0); // Remove the processed StoreBuffer from the queue
     		    table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
 
-    		    
-    		    
-    		    
     		    // Add a new instruction to the queue based on its operation type
-    		    if(op.equals("LD")) {
-    				LoadBuffer r2 =new LoadBuffer("Load");
-    				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-            		queue.add(r2);
-				}else if(op.equals("ADD")||op.equals("MUL")) {
-					ReservationStation r2 =new ReservationStation(op);
-	        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-	        		queue.add(r2);
-				}else if (op.equals("SD")) {
-	    		        StoreBuffer r2 = new StoreBuffer("Store");
-	    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-	    		        queue.add(r2);//add then then other store and normal     			
-				}
+    		    if (op.equals("LD")) {
+    		        LoadBuffer r2 = new LoadBuffer("Load");
+    		        r2.setAll(busy, a, Time, pos, op); // vK will be its address
+    		        queue.add(r2);
+    		    } else if (op.equals("ADD") || op.equals("MUL")) {
+    		        ReservationStation r2 = new ReservationStation(op);
+    		        r2.setAll(busy, op, vj, vk, qj, qk, a, Time, pos);
+    		        queue.add(r2);
+    		    } else if (op.equals("SD")) {
+    		        StoreBuffer r2 = new StoreBuffer("Store");
+    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
+    		        queue.add(r2); // Add the instruction back to the queue
+    		    }
     		    return;
     		}
+
 
     		ReservationStation r =(ReservationStation) queue.get(0);
     		
@@ -399,8 +428,8 @@ public class mainCode2 {
     		        else if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("L")) loadBufferForQj = loadBuffers; 
     		        else rr = addStations; // Dependency on ADD
     		        int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(1));
-    		        if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "q", vj, op));
-    		        else if (rr != null)rr.add(indexQj - 1, new Point(index, "q", vj, op));
+    		        if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qS", vj, op));
+    		        else if (rr != null)rr.add(indexQj - 1, new Point(index, "qS", vj, op));
     		        
     		    } else {
     		        Stations.get(index).setAll(busy, a, vj, qj, Time, pos, op); // Set directly if no dependencies
@@ -542,15 +571,41 @@ public class mainCode2 {
     		    }
 
     		    ready = false; // Mark as not ready to avoid multiple issues
-    		    System.out.println("This is the besy posh"+r.getPos());
-
-    		    Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
-
-    		    queue.remove(0); // Remove the processed StoreBuffer from the queue
-    		    table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
-
-    		  
-    		    return;
+    		    boolean qjFound = r.getQ() != null 
+                        && checkRegisterExists(r.getQ()) 
+                        && !regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().equals("S" + (index + 1));
+		        System.out.println("Dependency (qjFound): " + qjFound);
+		        if (qjFound) {
+		        	// Set dependency for StoreBuffer
+			        Stations.get(index).setAll(r.getBusy(), r.getA(), null, regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi(), r.getTime(), r.getPos(), r.getOp());
+			
+			        // Determine if the dependency comes from a LoadBuffer or ReservationStation
+			        ReservationStations rr = null;
+			        LoadBuffers loadBufferForQ = null;
+			
+			        if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("M")) {
+			        	rr = mulStations;
+			        } else if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("L")) {
+			        	loadBufferForQ = loadBuffers;
+			        } else {
+			        	rr = addStations; // Dependency on ADD
+			        }
+			
+			        int indexQ = Integer.parseInt(regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(1));
+			        if (loadBufferForQ != null) {
+			        	loadBufferForQ.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+			        } else if (rr != null) {
+			        	rr.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+			        }
+		        } else {
+		        	// If no dependency is found, set the StoreBuffer with the provided values
+		        	Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+		        }
+			
+		        queue.remove(0); // Remove the processed StoreBuffer from the queue
+		        table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
+			
+		        return;
     		}
 
     		
@@ -775,7 +830,7 @@ public class mainCode2 {
                         station.setStationJ(p.getX(), p.getZ());
                     if (p.getY().equals("qk"))
                         station.setStationK(p.getX(), p.getZ());
-                    if(p.getY().equals("q")) {
+                    if(p.getY().equals("qS")) {
                     	storeBuffers.setStationV(p.getX(),p.getZ());
                     	storeBuffers.get(p.getX()).setTime(2);
                     }
@@ -805,12 +860,12 @@ public class mainCode2 {
                         station.setStationJ(p.getX(), p.getZ());
                     if (p.getY().equals("qk"))
                         station.setStationK(p.getX(), p.getZ());
-                    if(p.getY().equals("q")) {
+                    if(p.getY().equals("qS")) {
                     	storeBuffers.setStationV(p.getX(),p.getZ());
                     	storeBuffers.get(p.getX()).setTime(2);
                     }
 
-                    if (station.get(p.getX()).getVj() != null && station.get(p.getX()).getVk() != null) {
+                    if ((p.getOp().equals("ADD")||p.getOp().equals("MUL"))&&station.get(p.getX()).getVj() != null && station.get(p.getX()).getVk() != null) {
                         station.get(p.getX()).setTime(2); // Adjust as needed
                     }
                 }
