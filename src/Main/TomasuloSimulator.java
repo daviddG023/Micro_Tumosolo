@@ -26,14 +26,21 @@ public class TomasuloSimulator {
                 components.table.setIssue(0, clockCycle);
                 Instruction instruction = components.table.getTable(0).getInstruction();
                 System.out.println(instruction.operation+  true+ instruction.operation+ instruction.source1+ instruction.source2+ null+ null+ instruction.destination+ 2+0+clockCycle);
-                components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.source1, instruction.source2, null, null, instruction.destination, 2,0,clockCycle);
+                if(instruction.operation.equals("SD"))
+                	components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.destination, instruction.source2, null, null, instruction.source1, 2,0,clockCycle);
+                else
+                	components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.source1, instruction.source2, null, null, instruction.destination, 2,0,clockCycle);
 //                components.updateRegister(Integer.parseInt(instruction.destination.substring(1))-1,"M1");
                
             } else if (i< components.table.size()) {
 //            	components.table.setIssue(i, clockCycle);
             	Instruction instruction = components.table.getTable(i).getInstruction();
             	System.out.println(instruction.operation+  true+ instruction.operation+ instruction.source1+ instruction.source2+ instruction.source1+ instruction.source2+ instruction.destination+ null+i+clockCycle);
-                components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.source1, instruction.source2, instruction.source1, instruction.source2, instruction.destination, null,i,clockCycle);
+            	if(instruction.operation.equals("SD"))
+            		components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.destination, instruction.source2, instruction.destination, instruction.source2, instruction.source1, null,i,clockCycle);
+            	else	
+            		components.updateReservationStation(instruction.operation,  true, instruction.operation, instruction.source1, instruction.source2, instruction.source1, instruction.source2, instruction.destination, null,i,clockCycle);
+            		
                 components.subtractCycle(clockCycle);
 //                components.updateRegister(Integer.parseInt(instruction.destination.substring(1))-1,"A1");
                 i++;
@@ -55,7 +62,7 @@ public class TomasuloSimulator {
     // Check if the simulation is complete
     private boolean isSimulationComplete() {
         // Example condition: Stop after 10 clock cycles
-        return clockCycle >=30;
+        return clockCycle >=32;
     }
     public static void main(String[] args) {
     	mainCode2 program = new mainCode2(

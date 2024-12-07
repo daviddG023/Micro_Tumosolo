@@ -1102,15 +1102,15 @@ public class mainCode2 {
 //
 //        System.out.println("\nLoad Buffers:");
 //        loadBuffers.printAllBuffers();
-////        
-//        System.out.println("\nStore Buffers:");
-//        storeBuffers.printAllBuffers();
+        
+        System.out.println("\nStore Buffers:");
+        storeBuffers.printAllBuffers();
 
-        System.out.println("\nAdd Reservation Stations:");
-        addStations.printAllStations();
-
-        System.out.println("\nMultiply Reservation Stations:");
-        mulStations.printAllStations();
+//        System.out.println("\nAdd Reservation Stations:");
+//        addStations.printAllStations();
+//
+//        System.out.println("\nMultiply Reservation Stations:");
+//        mulStations.printAllStations();
         
     }
 
