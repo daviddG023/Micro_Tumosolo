@@ -525,52 +525,33 @@ public class mainCode2 {
     			table.setIssue(r.getPos(), clockCycle);
     			return;
     		}
-    		 if (queue.get(0) instanceof StoreBuffer) {
-    		        StoreBuffer r = (StoreBuffer) queue.get(0);
-    		        StoreBuffers Stations = storeBuffers;
+    		if (queue.get(0) instanceof StoreBuffer) {
+    		    System.out.println("this is the queue: " + queue);
+    		    StoreBuffer r = (StoreBuffer) queue.get(0); // Cast the object from the queue
+    		    StoreBuffers Stations = storeBuffers;
 
-    		        Integer index = Stations.getFirstEmpty(); // Find the first available StoreBuffer index
-    		        if (index == -1) {
-    		            // Buffer is full, re-add instruction to the queue
-    		            return;
-    		        }
+    		    Integer index = Stations.getFirstEmpty(); // Get the first available StoreBuffer index
+    		    System.out.println("this is the index: " + index);
 
-    		        ready = false;
-
-    		        // Check if `qj` has a dependency
-    		        boolean qjFound = r.getQ() != null && checkRegisterExists(r.getQ());
-    		        if (qjFound) {
-    		            // Handle dependency
-    		            String qiQj = regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi();
-    		            String qiQjType = qiQj.substring(0, 1);
-    		            ReservationStations rr = null;
-    		            LoadBuffers loadBufferForQj = null;
-
-    		            if (qiQjType.equals("L")) {
-    		                loadBufferForQj = loadBuffers;
-    		            } else if (qiQjType.equals("M")) {
-    		                rr = mulStations;
-    		            } else if (qiQjType.equals("A")) {
-    		                rr = addStations;
-    		            }
-
-    		            int indexQj = Integer.parseInt(qiQj.substring(1));
-
-    		            if (loadBufferForQj != null) {
-    		                loadBufferForQj.add(indexQj - 1, new Point(index, "qj", r.getV(), r.getOp()));
-    		            } else if (rr != null) {
-    		                rr.add(indexQj - 1, new Point(index, "qj", r.getV(), r.getOp()));
-    		            }
-
-    		            Stations.get(index).setAll(r.getBusy(), r.getA(), null, qiQj, r.getTime(), r.getPos(), r.getOp());
-    		        } else {
-    		            Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
-    		        }
-
-    		        queue.remove(0); // Remove processed StoreBuffer from queue
-    		        table.setIssue(r.getPos(), clockCycle); // Set issue time
+    		    if (index == -1) {
+    		        // If no StoreBuffer is available, re-add the instruction to the queue
+//    		        StoreBuffer r2 = new StoreBuffer("Store");
+//    		        r2.setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+//    		        queue.add(r2);
     		        return;
     		    }
+
+    		    ready = false; // Mark as not ready to avoid multiple issues
+    		    System.out.println("This is the besy posh"+r.getPos());
+
+    		    Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+
+    		    queue.remove(0); // Remove the processed StoreBuffer from the queue
+    		    table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
+
+    		  
+    		    return;
+    		}
 
     		
     		
