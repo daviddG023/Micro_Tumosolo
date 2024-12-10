@@ -17,12 +17,14 @@ import java.util.List;
 public class mainCode2 {
     ExecutionTable table;
     RegFiles regFile;
+    RegFiles regFileI;
     LoadBuffers loadBuffers;
     StoreBuffers storeBuffers;
     ReservationStations addStations;
     ReservationStations mulStations;
 	ArrayList<Points> writeBack; 
 	ArrayList<Object> queue;
+	ReservationStations normal;
 	boolean ready= true;
 	
 	// Base Point Class
@@ -73,6 +75,7 @@ public class mainCode2 {
 
     // Constructor to initialize components
     public mainCode2(int regNum, int loadNum, int storeNum,int addNum, int mulNum, String instructionFilePath) {
+    	
     	writeBack= new ArrayList<>();
     	queue= new ArrayList<>();
 
@@ -81,6 +84,7 @@ public class mainCode2 {
 
         // Initialize Register File
         regFile = new RegFiles(regNum);
+        regFileI = new RegFiles(regNum);
 
         // Initialize Load Buffers
         loadBuffers = new LoadBuffers(loadNum);
@@ -101,6 +105,7 @@ public class mainCode2 {
                 Execution.add(new ExecutionEntry(instr));
             }  
             table.addEntries(Execution);
+            normal = new ReservationStations(table.size(), "N");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -140,14 +145,14 @@ public class mainCode2 {
         }
     }
 
-    public void updateReservationStation
-    (String type, boolean busy, String op, String vj, String vk, String qj, String qk,
+    public void updateReservationStation(String type, boolean busy, String op, String vj, String vk, String qj, String qk,
     		String a, Integer Time,Integer pos,int clockCycle) { 
-    	
-    	
-    	
+    		if(op.equals("ADDI")||op.equals("DADDI")||op.equals("SUBI")||op.equals("BEQ")||op.equals("BNE")) {
+    			updateReservationStationI(  type,  busy,   op,   vj,   vk, a, pos, clockCycle); 
+    			return;
+    	        
+    		}
     	if(!queue.isEmpty()) {
-    		
     		if (queue.get(0) instanceof LoadBuffer) {
     			System.out.println("this is the queue"+queue);
     			LoadBuffer r =(LoadBuffer) queue.get(0);
@@ -155,44 +160,17 @@ public class mainCode2 {
             	
             	Integer index = Stations.getFirstEmpty();//can be -1 if full
             	System.out.println("this is the index"+index);
-    			if(index==-1) {
-    				if(op.equals("LD")) {
-        				LoadBuffer r2 =new LoadBuffer("Load");
-        				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-                		queue.add(r2);
-    				}else if(op.equals("ADD")||op.equals("MUL")) {
-    					ReservationStation r2 =new ReservationStation(op);
-    	        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-    	        		queue.add(r2);
-    				}else if (op.equals("SD")) {
-    	    		        StoreBuffer r2 = new StoreBuffer("Store");
-    	    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-    	    		        queue.add(r2);//add then then other store and normal     			
-    				}
-    				return;
-            	}
-    			ready =false;
-    			updateRegister(Integer.parseInt(r.getA().substring(1))-1,"L"+(index+1));//R5
-    			Stations.get(index).setAll(r.getBusy(), r.getA(), r.getTime(), r.getPos(),r.getOp()); //a will be its address
-    			
-    			queue.remove(0);
-    			table.setIssue(r.getPos(), clockCycle);
-    			if(op.equals("LD")) {
-    				LoadBuffer r2 =new LoadBuffer("Load");
-    				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-            		queue.add(r2);
-				}else if(op.equals("ADD")||op.equals("MUL")) {
-					ReservationStation r2 =new ReservationStation(op);
-	        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-	        		queue.add(r2);
-				}else if (op.equals("SD")) {
-	    		        StoreBuffer r2 = new StoreBuffer("Store");
-	    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-	    		        queue.add(r2);//add then then other store and normal     			
+    			if(index!=-1) {
+					ready =false;
+					updateRegister(Integer.parseInt(r.getA().substring(1))-1,"L"+(index+1));//R5
+					Stations.get(index).setAll(r.getBusy(), r.getA(), r.getTime(), r.getPos(),r.getOp()); //a will be its address
+					
+					queue.remove(0);
+					table.setIssue(r.getPos(), clockCycle);
+					
 				}
-    			return;
     		}
-    		if (queue.get(0) instanceof StoreBuffer) {
+    		else if (queue.get(0) instanceof StoreBuffer) {
     		    System.out.println("this is the queue: " + queue);
     		    StoreBuffer r = (StoreBuffer) queue.get(0); // Cast the object from the queue
     		    StoreBuffers Stations = storeBuffers;
@@ -200,24 +178,8 @@ public class mainCode2 {
     		    Integer index = Stations.getFirstEmpty(); // Get the first available StoreBuffer index
     		    System.out.println("this is the index: " + index);
 
-    		    if (index == -1) {
+    		    if (index != -1) {
     		        // If no StoreBuffer is available, re-add the instruction to the queue
-    		        if (op.equals("LD")) {
-    		            LoadBuffer r2 = new LoadBuffer("Load");
-    		            r2.setAll(busy, a, Time, pos, op); // vK will be its address
-    		            queue.add(r2);
-    		        } else if (op.equals("ADD") || op.equals("MUL")) {
-    		            ReservationStation r2 = new ReservationStation(op);
-    		            r2.setAll(busy, op, vj, vk, qj, qk, a, Time, pos);
-    		            queue.add(r2);
-    		        } else if (op.equals("SD")) {
-    		            StoreBuffer r2 = new StoreBuffer("Store");
-    		            r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-    		            queue.add(r2); // Add the instruction back to the queue
-    		        }
-    		        return;
-    		    }
-
     		    ready = false; // Mark as not ready to avoid multiple issues
 
     		    // Check for dependencies
@@ -255,132 +217,105 @@ public class mainCode2 {
 
     		    queue.remove(0); // Remove the processed StoreBuffer from the queue
     		    table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
-
-    		    // Add a new instruction to the queue based on its operation type
-    		    if (op.equals("LD")) {
-    		        LoadBuffer r2 = new LoadBuffer("Load");
-    		        r2.setAll(busy, a, Time, pos, op); // vK will be its address
-    		        queue.add(r2);
-    		    } else if (op.equals("ADD") || op.equals("MUL")) {
-    		        ReservationStation r2 = new ReservationStation(op);
-    		        r2.setAll(busy, op, vj, vk, qj, qk, a, Time, pos);
-    		        queue.add(r2);
-    		    } else if (op.equals("SD")) {
-    		        StoreBuffer r2 = new StoreBuffer("Store");
-    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-    		        queue.add(r2); // Add the instruction back to the queue
-    		    }
-    		    return;
+				}
     		}
+			else{
+				
+				ReservationStation r =(ReservationStation) queue.get(0);
+				
+				
+				ReservationStations Stations = r.getOp().equals("ADD")?addStations:mulStations;
+				
+				Integer index = Stations.getFirstEmpty();//can be -1 if full
+				if(index!=-1) {
+					ready =false;
+					// i want to remove last condition and add on that checks if the RegFile.qi!=to current station
+					String s = r.getOp().equals("ADD")?"A":r.getOp().equals("MUL")?"M":"L";
+					boolean qjFound = r.getQj() != null && checkRegisterExists(r.getQj()) && /*!r.getQj().equals(r.getA())*/!regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
+					boolean qkFound = r.getQk() != null && checkRegisterExists(r.getQk()) && /*!r.getQk().equals(r.getA())*/!regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
+					
+					if(qjFound && qkFound) {     
+						ReservationStations rr = null, rr2 = null;
+						LoadBuffers loadBufferForQj = null, loadBufferForQk = null;
 
+						// Determine the types for qj and qk
+						String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
+						String qiQk = regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(0, 1);
 
-    		ReservationStation r =(ReservationStation) queue.get(0);
-    		
-    		
-    		ReservationStations Stations = r.getOp().equals("ADD")?addStations:mulStations;
-        	
-        	Integer index = Stations.getFirstEmpty();//can be -1 if full
-    		if(index==-1) {
-    			if(op.equals("LD")) {
-    				LoadBuffer r2 =new LoadBuffer("Load");
-    				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-            		queue.add(r2);
-				}else if(op.equals("ADD")||op.equals("MUL")) {
-					ReservationStation r2 =new ReservationStation(op);
-	        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-	        		queue.add(r2);
-				}else if (op.equals("SD")) {
-	    		        StoreBuffer r2 = new StoreBuffer("Store");
-	    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-	    		        queue.add(r2);//add then then other store and normal     			
-				} 
-        		return;
-        	}
-    		ready =false;
-    		// i want to remove last condition and add on that checks if the RegFile.qi!=to current station
-    		String s = r.getOp().equals("ADD")?"A":r.getOp().equals("MUL")?"M":"L";
-    		boolean qjFound = r.getQj() != null && checkRegisterExists(r.getQj()) && /*!r.getQj().equals(r.getA())*/!regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
-    	    boolean qkFound = r.getQk() != null && checkRegisterExists(r.getQk()) && /*!r.getQk().equals(r.getA())*/!regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
-    	    
-    	    if(qjFound && qkFound) {     
-    	    	ReservationStations rr = null, rr2 = null;
-    	    	LoadBuffers loadBufferForQj = null, loadBufferForQk = null;
+						rr = qiQj.equals("M") ? mulStations : qiQj.equals("A") ? addStations : null;
+						loadBufferForQj = qiQj.equals("L") ? loadBuffers : null;
 
-    	    	// Determine the types for qj and qk
-    	    	String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
-    	    	String qiQk = regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(0, 1);
+						rr2 = qiQk.equals("M") ? mulStations : qiQk.equals("A") ? addStations : null;
+						loadBufferForQk = qiQk.equals("L") ? loadBuffers : null;
 
-    	    	rr = qiQj.equals("M") ? mulStations : qiQj.equals("A") ? addStations : null;
-    	    	loadBufferForQj = qiQj.equals("L") ? loadBuffers : null;
+						// Parse indices
+						int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
+						int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
 
-    	    	rr2 = qiQk.equals("M") ? mulStations : qiQk.equals("A") ? addStations : null;
-    	    	loadBufferForQk = qiQk.equals("L") ? loadBuffers : null;
+						// Add dependencies
+						if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+						else if (rr != null) rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
 
-    	    	// Parse indices
-    	    	int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
-    	    	int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
+						if (loadBufferForQk != null) loadBufferForQk.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+						else if (rr2 != null) rr2.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+						r.setAll( r.getBusy(), r.getOp(), null,null,regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi(), regFile.get(Integer.parseInt(r.getQk().substring(1))-1).getQi(),r.getA(),r.getTime(),r.getPos());
+					}
+					else if (qjFound || qkFound) {
+						if(qjFound) {
+							String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
+							int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
 
-    	    	// Add dependencies
-    	    	if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
-    	    	else if (rr != null) rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+							// Determine if qj points to a LoadBuffer or ReservationStation
+							if (qiQj.equals("L")) {
+								loadBuffers.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+							} else {
+								ReservationStations rr = qiQj.equals("M") ? mulStations : addStations;
+								rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+							}
 
-    	    	if (loadBufferForQk != null) loadBufferForQk.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
-    	    	else if (rr2 != null) rr2.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
-        		r.setAll( r.getBusy(), r.getOp(), null,null,regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi(), regFile.get(Integer.parseInt(r.getQk().substring(1))-1).getQi(),r.getA(),r.getTime(),r.getPos());
-    	    }
-        	else if (qjFound || qkFound) {
-        		if(qjFound) {
-        			String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
-        			int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
+							r.setAll( r.getBusy(), r.getOp(), null, r.getVk(),r.getQj(), null,r.getA(),r.getTime(),r.getPos());
+							
+						}
+						if(qkFound) {
+							int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
 
-        			// Determine if qj points to a LoadBuffer or ReservationStation
-        			if (qiQj.equals("L")) {
-        			    loadBuffers.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
-        			} else {
-        			    ReservationStations rr = qiQj.equals("M") ? mulStations : addStations;
-        			    rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
-        			}
+							if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("L")) {
+								loadBuffers.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							} else if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("M")) {
+								mulStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							} else {
+								addStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							}
+					
+							r.setAll( r.getBusy(), r.getOp(), r.getVj(), null, null, r.getQk(),r.getA(),r.getTime(),r.getPos());
+						}
+					}else {
+						r.setAll( r.getBusy(), r.getOp(), r.getVj(), r.getVk(), null, null,r.getA(),r.getTime(),r.getPos());
+					}
+					table.setIssue(r.getPos(), clockCycle);
+					System.out.println(queue.get(0));
+					Stations = r.getOp().equals("ADD")?addStations:mulStations;
+					System.out.println("this isss"+r.getOp()+index);
+					Stations.setStation(index,r);
+					s = r.getOp().equals("ADD")?"A":"M";
+					updateRegister(Integer.parseInt(r.getA().substring(1))-1,s+(index+1));
+					queue.remove(0);
 
-        			r.setAll( r.getBusy(), r.getOp(), null, r.getVk(),r.getQj(), null,r.getA(),r.getTime(),r.getPos());
-            		
-        		}
-        		if(qkFound) {
-        			int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
-
-        			if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("L")) {
-        			    loadBuffers.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
-        			} else if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("M")) {
-        			    mulStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
-        			} else {
-        			    addStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
-        			}
-   			
-            		r.setAll( r.getBusy(), r.getOp(), r.getVj(), null, null, r.getQk(),r.getA(),r.getTime(),r.getPos());
-        		}
-        	}else {
-        		r.setAll( r.getBusy(), r.getOp(), r.getVj(), r.getVk(), null, null,r.getA(),r.getTime(),r.getPos());
-        	}
-    	    table.setIssue(r.getPos(), clockCycle);
-    	    System.out.println(queue.get(0));
-    	    Stations = r.getOp().equals("ADD")?addStations:mulStations;
-    	    System.out.println("this isss"+r.getOp()+index);
-    	    Stations.setStation(index,r);
-    	    s = r.getOp().equals("ADD")?"A":"M";
-    	    updateRegister(Integer.parseInt(r.getA().substring(1))-1,s+(index+1));
-    	    queue.remove(0);
-
-    	    if(op.equals("LD")) {
+					
+				}
+			}
+			if(op.equals("LD")) {
 				LoadBuffer r2 =new LoadBuffer("Load");
 				r2.setAll(busy, a, Time, pos,op); //vK will be its address
-        		queue.add(r2);
+				queue.add(r2);
 			}else if(op.equals("ADD")||op.equals("MUL")) {
 				ReservationStation r2 =new ReservationStation(op);
-        		r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
-        		queue.add(r2);
+				r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
+				queue.add(r2);
 			}else if (op.equals("SD")) {
-    		        StoreBuffer r2 = new StoreBuffer("Store");
-    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
-    		        queue.add(r2);//add then then other store and normal     			
+				StoreBuffer r2 = new StoreBuffer("Store");
+				r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
+				queue.add(r2);//add then then other store and normal     			
 			}
     	}else {
     		if(op.equals("LD")) {
@@ -766,42 +701,6 @@ public class mainCode2 {
     	
     }
     
-    public void writeBack1(int clockCycle) {
-    	System.out.println("hala waala");
-    	System.out.println(writeBack);
-    	writeBack.sort(Comparator.comparingInt(Points::getX));
-    	if(!writeBack.isEmpty()) {
-    		String type = writeBack.get(0).op;
-        	ReservationStations Stations = type.equals("ADD")?addStations:mulStations;
-    		List<Point> l= Stations.get(writeBack.get(0).y).getList();
-    		System.out.println("this is why "+writeBack);
-    		System.out.println("this is why "+Stations.get(writeBack.get(0).y).getPos());
-    		table.setWriteBack(writeBack.get(0).x, clockCycle);
-        	for(Point p:l) {
-        		ReservationStations station = p.getOp().equals("ADD") ? addStations : mulStations;
-        		System.out.println("this is the p "+p);
-        		if(p.getY().equals("qj"))
-        			station.setStationJ(p.getX(), p.getZ());
-        		if(p.getY().equals("qk"))
-        			station.setStationK(p.getX(), p.getZ());
-        	
-        		if(station.get(p.getX()).getVj()!=null&&station.get(p.getX()).getVk()!=null) {
-        			station.get(p.getX()).setTime(2);//adjust hasab el process
-                }//return here
-        	}
-        	String register = Stations.get(writeBack.get(0).y).getA(); // Assuming this is "R1"
-        	int value = Integer.parseInt(register.substring(1)); // Removes the first character ("R") and parses the rest
-
-        	regFile.resetRow(value-1);
-        	System.out.println("this is the x"+writeBack.get(0).x);
-        	System.out.println("this is the y"+writeBack.get(0).y);
-//        	if(writeBack.get(0).y<3)
-        	Stations.get(writeBack.get(0).y).reset();
-        	writeBack.remove(0);
-    	}
-    }
-
-    
     public void writeBack(int clockCycle) {
         writeBack.sort(Comparator.comparingInt(Points::getX));
         if (!writeBack.isEmpty()) {
@@ -884,7 +783,6 @@ public class mainCode2 {
             writeBack.remove(0);
         }
     }
-
     
     
     
@@ -1082,7 +980,53 @@ public class mainCode2 {
     	            }
     	        }
     	    }
-
+    	    
+    	    for (int i = 0; i < normal.size(); i++) {
+    	    	if(normal.get(i).getBusy()==false) {
+//    	    		if (!queue.isEmpty() && (queue.get(0) instanceof ReservationStation)) {
+//    	    		    ReservationStation station = (ReservationStation) queue.get(0); // Cast before accessing methods
+//    	    		    if (station.getOp().equals("ADD") && ready) {
+//    	    			System.out.println("this is the queue "+queue);
+//    	    			updateReservationStation(clockCycle,"ADD");
+//    	    			ready=false;
+//    	    			//call when issuing all
+//    	    		    }
+//    	    		}
+    	    	}
+    	    	if(normal.get(i).getBusy()==true){
+    	    		ReservationStation station = normal.get(i);
+    		        Integer time = station.getTime();
+    	    		if (time != null) {  
+//    		        	if(table.get(station.getPos()).getIssue()==null||time==2&&table.get(station.getPos()).getIssue()==clockCycle)//change i adjust time
+//    		        		continue;
+    		        	if(time == 1) {//adjust time 
+    		        		table.setExecutionStart(station.getPos(), clockCycle);
+    		        	} 
+    		        	if (time == 1) 
+    		            	table.setExecutionEnd(station.getPos(), clockCycle);
+    		            // Subtract 1 from time
+    		        	
+    		            if (time == 1) {
+    		            	writeBack.add(new Points(station.getPos(),i,station.getOp()));
+    		            	station.setTime(-1);
+    		            }
+    		            if(time!=0){
+    		            	time = time - 1;
+    		            	station.setTime(time);
+    		            }
+    		        }else {
+    		        	if(station.getVj()!=null&&station.getVk()!=null) {
+    	        			station.setTime(1);
+    	        			System.out.println("this is thea "+clockCycle);
+    	        			
+    	                }
+    		        	if(station.getOp().equals("SD")&&station.getVj()!=null&&station.getA()!=null) {
+    		        		station.setTime(1);
+    		        	}
+    		        	
+    		        }
+    	    	}
+    	    }
 
     	    writeBack(clockCycle);
     	    ready=true;
@@ -1094,17 +1038,20 @@ public class mainCode2 {
     
     // Method to print all tables
     public void printTables() {
-//        System.out.println("Execution Table:");
+        System.out.println("Execution Table:");
           table.printTable();
 
-        System.out.println("\nRegister File:");
-        regFile.printAllRegisters();
+//        System.out.println("\nRegister File:");
+//        regFile.printAllRegisters();
+          
+        System.out.println("\nRegister FileI:");
+        regFileI.printAllRegisters();
 //
 //        System.out.println("\nLoad Buffers:");
 //        loadBuffers.printAllBuffers();
-        
-        System.out.println("\nStore Buffers:");
-        storeBuffers.printAllBuffers();
+//        
+//        System.out.println("\nStore Buffers:");
+//        storeBuffers.printAllBuffers();
 
 //        System.out.println("\nAdd Reservation Stations:");
 //        addStations.printAllStations();
@@ -1112,7 +1059,376 @@ public class mainCode2 {
 //        System.out.println("\nMultiply Reservation Stations:");
 //        mulStations.printAllStations();
         
+//      System.out.println("\nNormal Reservation Stations:");
+//      normal.printAllStations();
+        
     }
+    
+    
+    
+    
+    public void updateReservationStation2(String type, boolean busy, String op, String vj, String vk, String qj, String qk,
+    		String a, Integer Time,Integer pos,int clockCycle) { 
+    	if(!queue.isEmpty()) {
+    		if (queue.get(0) instanceof LoadBuffer) {
+    			System.out.println("this is the queue"+queue);
+    			LoadBuffer r =(LoadBuffer) queue.get(0);
+    			LoadBuffers Stations = loadBuffers;
+            	
+            	Integer index = Stations.getFirstEmpty();//can be -1 if full
+            	System.out.println("this is the index"+index);
+    			if(index!=-1) {
+					ready =false;
+					updateRegister(Integer.parseInt(r.getA().substring(1))-1,"L"+(index+1));//R5
+					Stations.get(index).setAll(r.getBusy(), r.getA(), r.getTime(), r.getPos(),r.getOp()); //a will be its address
+					
+					queue.remove(0);
+					table.setIssue(r.getPos(), clockCycle);
+					
+				}
+    		}
+    		else if (queue.get(0) instanceof StoreBuffer) {
+    		    System.out.println("this is the queue: " + queue);
+    		    StoreBuffer r = (StoreBuffer) queue.get(0); // Cast the object from the queue
+    		    StoreBuffers Stations = storeBuffers;
+
+    		    Integer index = Stations.getFirstEmpty(); // Get the first available StoreBuffer index
+    		    System.out.println("this is the index: " + index);
+
+    		    if (index != -1) {
+    		        // If no StoreBuffer is available, re-add the instruction to the queue
+    		        
+    		    
+
+    		    ready = false; // Mark as not ready to avoid multiple issues
+
+    		    // Check for dependencies
+    		    boolean qjFound = r.getQ() != null 
+    		                      && checkRegisterExists(r.getQ()) 
+    		                      && !regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().equals("S" + (index + 1));
+    		    System.out.println("Dependency (qjFound): " + qjFound);
+
+    		    if (qjFound) {
+    		        // Set dependency for StoreBuffer
+    		        Stations.get(index).setAll(r.getBusy(), r.getA(), null, regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi(), r.getTime(), r.getPos(), r.getOp());
+
+    		        // Determine if the dependency comes from a LoadBuffer or ReservationStation
+    		        ReservationStations rr = null;
+    		        LoadBuffers loadBufferForQ = null;
+
+    		        if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("M")) {
+    		            rr = mulStations;
+    		        } else if (regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(0, 1).equals("L")) {
+    		            loadBufferForQ = loadBuffers;
+    		        } else {
+    		            rr = addStations; // Dependency on ADD
+    		        }
+
+    		        int indexQ = Integer.parseInt(regFile.get(Integer.parseInt(r.getQ().substring(1)) - 1).getQi().substring(1));
+    		        if (loadBufferForQ != null) {
+    		            loadBufferForQ.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+    		        } else if (rr != null) {
+    		            rr.add(indexQ - 1, new Point(index, "qS", null, r.getOp()));
+    		        }
+    		    } else {
+    		        // If no dependency is found, set the StoreBuffer with the provided values
+    		        Stations.get(index).setAll(r.getBusy(), r.getA(), r.getV(), r.getQ(), r.getTime(), r.getPos(), r.getOp());
+    		    }
+
+    		    queue.remove(0); // Remove the processed StoreBuffer from the queue
+    		    table.setIssue(r.getPos(), clockCycle); // Mark the issue time in the execution table
+				}
+    		}
+			else{
+				
+				ReservationStation r =(ReservationStation) queue.get(0);
+				
+				
+				ReservationStations Stations = r.getOp().equals("ADD.D")?addStations:r.getOp().equals("ADD")?normal:r.getOp().equals("MUL.D")?mulStations:null;
+				
+				Integer index = Stations.getFirstEmpty();//can be -1 if full
+				if(index!=-1) {
+					ready =false;
+					// i want to remove last condition and add on that checks if the RegFile.qi!=to current station
+					String s = r.getOp().equals("ADD.D")?"A":r.getOp().equals("MUL.D")?"M":r.getOp().equals("LD")?"L":r.getOp().equals("ADD")?"F":null;
+					boolean qjFound = r.getQj() != null && checkRegisterExists(r.getQj()) && !regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
+					boolean qkFound = r.getQk() != null && checkRegisterExists(r.getQk()) && !regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi().equals(s+index+1);
+					
+					if(qjFound && qkFound) {     
+						ReservationStations rr = null, rr2 = null;
+						LoadBuffers loadBufferForQj = null, loadBufferForQk = null;
+
+						// Determine the types for qj and qk
+						String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
+						String qiQk = regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(0, 1);
+
+						rr = qiQj.equals("M") ? mulStations : qiQj.equals("A") ? addStations : qiQj.equals("F") ? normal:null;
+						loadBufferForQj = qiQj.equals("L") ? loadBuffers : null;
+
+						rr2 = qiQk.equals("M") ? mulStations : qiQk.equals("A") ? addStations : qiQk.equals("F") ? normal : null;
+						loadBufferForQk = qiQk.equals("L") ? loadBuffers : null;
+
+						// Parse indices
+						int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
+						int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
+
+						// Add dependencies
+						if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+						else if (rr != null) rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+
+						if (loadBufferForQk != null) loadBufferForQk.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+						else if (rr2 != null) rr2.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+						r.setAll( r.getBusy(), r.getOp(), null,null,regFile.get(Integer.parseInt(r.getQj().substring(1))-1).getQi(), regFile.get(Integer.parseInt(r.getQk().substring(1))-1).getQi(),r.getA(),r.getTime(),r.getPos());
+					}
+					else if (qjFound || qkFound) {
+						if(qjFound) {
+							String qiQj = regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(0, 1);
+							int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(r.getQj().substring(1)) - 1).getQi().substring(1));
+
+							// Determine if qj points to a LoadBuffer or ReservationStation
+							if (qiQj.equals("L")) {
+								loadBuffers.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+							} else {
+								ReservationStations rr = qiQj.equals("M") ? mulStations : addStations;
+								rr.add(indexQj - 1, new Point(index, "qj", r.getVj(), r.getOp()));
+							}
+
+							r.setAll( r.getBusy(), r.getOp(), null, r.getVk(),r.getQj(), null,r.getA(),r.getTime(),r.getPos());
+							
+						}
+						if(qkFound) {
+							int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().substring(1));
+
+							if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("L")) {
+								loadBuffers.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							} else if (regFile.get(Integer.parseInt(r.getQk().substring(1)) - 1).getQi().startsWith("M")) {
+								mulStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							} else {
+								addStations.add(indexQk - 1, new Point(index, "qk", r.getVk(), r.getOp()));
+							}
+					
+							r.setAll( r.getBusy(), r.getOp(), r.getVj(), null, null, r.getQk(),r.getA(),r.getTime(),r.getPos());
+						}
+					}else {
+						r.setAll( r.getBusy(), r.getOp(), r.getVj(), r.getVk(), null, null,r.getA(),r.getTime(),r.getPos());
+					}
+					table.setIssue(r.getPos(), clockCycle);
+					System.out.println(queue.get(0));
+					Stations = r.getOp().equals("ADD.D")?addStations:normal;
+					System.out.println("this isss"+r.getOp()+index);
+					Stations.setStation(index,r);
+					s = r.getOp().equals("ADD.D")?"A":"F";
+					updateRegister(Integer.parseInt(r.getA().substring(1))-1,s+(index+1));
+					queue.remove(0);
+
+					
+				}
+			}
+			if(op.equals("LD")) {
+				LoadBuffer r2 =new LoadBuffer("Load");
+				r2.setAll(busy, a, Time, pos,op); //vK will be its address
+				queue.add(r2);
+			}else if(op.equals("ADD.D")||op.equals("MUL")) {
+				ReservationStation r2 =new ReservationStation(op);
+				r2.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
+				queue.add(r2);
+			}else if (op.equals("SD")) {
+				StoreBuffer r2 = new StoreBuffer("Store");
+				r2.setAll(busy, a, vj, qj, Time, pos, op); // `vj` is the value, `qj` is the dependency
+				queue.add(r2);//add then then other store and normal     			
+			}
+    	}else {
+    		if(op.equals("LD.D")) {
+    			LoadBuffers Stations = loadBuffers;
+            	
+            	Integer index = Stations.getFirstEmpty();//can be -1 if full
+    			if(index==-1) {
+	    			LoadBuffer r2 =new LoadBuffer("Load");
+	    			r2.setAll(busy, a, Time, pos,op); //a will be its address
+	    			queue.add(r2);
+    				return;
+            	}
+    			ready =false;
+    			table.setIssue(pos, clockCycle);
+    			updateRegister(Integer.parseInt(a.substring(1))-1,"L"+(index+1));//R5
+    			Stations.get(index).setAll(busy, a, Time, pos,op); //a will be its address
+    			return;
+    		}
+    		if (op.equals("SD.D")) {
+    		    StoreBuffers Stations = storeBuffers;
+
+    		    Integer index = Stations.getFirstEmpty(); // Get the first available StoreBuffer index
+    		    if (index == -1) {
+    		        // If no StoreBuffer is available, add the instruction to the queue
+    		        StoreBuffer r2 = new StoreBuffer("Store");
+    		        r2.setAll(busy, a, vj, qj, Time, pos, op); // `a` is its address
+    		        queue.add(r2);
+    		        return;
+    		    }
+
+    		    ready = false;
+    		    table.setIssue(pos, clockCycle); // Set issue time in the execution table
+
+    		    boolean qjFound = qj != null && checkRegisterExists(qj)&&!regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().equals("S" + (index + 1));//changed this line
+    		    System.out.println("this is the qj"+qjFound);
+
+    		    if (qjFound) {
+    		        Stations.get(index).setAll(busy, a, null, regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi(), Time, pos, op);
+
+    		        // Determine if `qj` refers to a `ReservationStation` or `LoadBuffers`
+    		        ReservationStations rr = null;
+    		        LoadBuffers loadBufferForQj = null;
+
+    		        if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("M"))rr = mulStations;
+    		        else if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("L")) loadBufferForQj = loadBuffers; 
+    		        else rr = addStations; // Dependency on ADD
+    		        int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(1));
+    		        if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qS", vj, op));
+    		        else if (rr != null)rr.add(indexQj - 1, new Point(index, "qS", vj, op));
+    		        
+    		    } else {
+    		        Stations.get(index).setAll(busy, a, vj, qj, Time, pos, op); // Set directly if no dependencies
+    		    }
+    		    return;
+    		}
+
+
+    		ReservationStations Stations = type.equals("ADD.D")?addStations:normal;
+        	
+        	Integer index = Stations.getFirstEmpty();//can be -1 if full
+    		if(index==-1) {//need to add if its either ADD.D or MUL.D
+        		ReservationStation r =new ReservationStation("Queue");
+        		r.setAll( busy, op, vj, vk, qj, qk,a,Time,pos);
+        		queue.add(r);
+        		return;
+        	}
+    		ready =false;
+    		String s = op.equals("ADD.D")?"A":op.equals("MUL")?"M":"L";
+    		boolean qjFound = qj != null && checkRegisterExists(qj) && !regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().equals(s+index+1);
+    	    boolean qkFound = qk != null && checkRegisterExists(qk) && !regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().equals(s+index+1);
+    		System.out.println("this is both the flags"+qjFound+qkFound);
+    	    if(qjFound && qkFound) {
+            	Stations.get(index).setAll(busy, op, null, null,regFile.get(Integer.parseInt(qj.substring(1))-1).getQi(), regFile.get(Integer.parseInt(qk.substring(1))-1).getQi(),a, Time,pos);
+            	ReservationStations rr = null;
+            	ReservationStations rr2 = null;
+            	LoadBuffers loadBufferForQj = null;
+            	LoadBuffers loadBufferForQk = null;
+
+            	if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("M")) rr = mulStations;
+            	else if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("L")) loadBufferForQj = loadBuffers; // Use LoadBuffers for 'L' type
+            	else rr = addStations;
+            	if (regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(0, 1).equals("M")) rr2 = mulStations;
+            	else if (regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(0, 1).equals("L")) loadBufferForQk = loadBuffers; // Use LoadBuffers for 'L' type
+            	else rr2 = addStations;
+            	int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(1));
+            	int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(1));
+            	if (loadBufferForQj != null) loadBufferForQj.add(indexQj - 1, new Point(index, "qj", vj, op)); // Custom logic for LoadBuffers
+            	else if (rr != null) rr.add(indexQj - 1, new Point(index, "qj", vj, op));
+            	if (loadBufferForQk != null) loadBufferForQk.add(indexQk - 1, new Point(index, "qk", vk, op)); // Custom logic for LoadBuffers
+            	else if (rr2 != null) rr2.add(indexQk - 1, new Point(index, "qk", vk, op));
+            	
+            	
+            }
+    		else if (qjFound || qkFound) {
+                // Both qj and qk found in RegFiles
+            	if(qjFound) {
+            		Stations.get(index).setAll(busy, op, null, vk, regFile.get(Integer.parseInt(qj.substring(1))-1).getQi(), null, a, Time,pos);
+            		ReservationStations rr = null;
+            		LoadBuffers loadBufferForQj = null;
+            		if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("F")) {
+            		    rr = normal;
+            		} else if (regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(0, 1).equals("L")) {
+            		    loadBufferForQj = loadBuffers; // Use LoadBuffers for 'L' type
+            		} else {
+            		    rr = addStations;
+            		}
+            		int indexQj = Integer.parseInt(regFile.get(Integer.parseInt(qj.substring(1)) - 1).getQi().substring(1));
+
+            		if (loadBufferForQj != null) {
+            		    loadBufferForQj.add(indexQj - 1, new Point(index, "qj", vj, op)); // Custom logic for LoadBuffers
+            		} else if (rr != null) {
+            		    rr.add(indexQj - 1, new Point(index, "qj", vj, op));
+            		}          		
+            	}
+            	if(qkFound) {
+            		Stations.get(index).setAll(busy, op, vj, null, null, regFile.get(Integer.parseInt(qk.substring(1))-1).getQi(), a, Time,pos);
+            		ReservationStations rr2 = null;
+            		LoadBuffers loadBufferForQk = null;
+
+            		// Check if Qk refers to a `LoadBuffers` or a `ReservationStations`
+            		if (regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(0, 1).equals("F")) {
+            		    rr2 = normal;
+            		} else if (regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(0, 1).equals("L")) {
+            		    loadBufferForQk = loadBuffers; // Use LoadBuffers for 'L' type
+            		} else {
+            		    rr2 = addStations;
+            		}
+
+            		// Parse the index for Qk
+            		int indexQk = Integer.parseInt(regFile.get(Integer.parseInt(qk.substring(1)) - 1).getQi().substring(1));
+
+            		// Add Point to the appropriate station or buffer
+            		if (loadBufferForQk != null) {
+            		    loadBufferForQk.add(indexQk - 1, new Point(index, "qk", vk, op)); // Custom logic for LoadBuffers
+            		} else if (rr2 != null) {
+            		    rr2.add(indexQk - 1, new Point(index, "qk", vk, op));
+            		}
+
+            	}
+            } else {
+            	Stations.get(index).setAll(busy, op, vj, vk, qj, qk, a, Time,pos);//can change qj and qk with null
+            	if(op.equals("SD")&&vj!=null&&a!=null||op.equals("ADD")&&vj!=null&&vk!=null||op.equals("LD")&&a!=null&&vj!=null) {
+            		Stations.get(index).setTime(1);
+            	}
+            }
+    	    
+            table.setIssue(pos, clockCycle);
+            s = type.equals("ADD.D")?"A":"F";
+            if(!type.equals("SD"))
+            	updateRegister(Integer.parseInt(a.substring(1))-1,s+(index+1));
+            regFile.printAllRegisters();
+            
+    	}
+    	
+    }
+    
+
+    public void updateReservationStationI(String type, boolean busy, String op, String vj, String vk,
+    		String a,Integer pos,int clockCycle) { 
+    	 if(op.equals("ADDI")||op.equals("DADDI")) {
+    		 int indexj = Integer.parseInt(vj.substring(1)) - 1;
+    		 int indexA = Integer.parseInt(a.substring(1)) - 1;
+    		 double d = regFile.get(indexj).getValue()+Integer.parseInt(vk);
+    		 regFileI.get(indexA).setValue(d);
+    	}else if(op.equals("SUBI")) {
+	   		 int indexj = Integer.parseInt(vj.substring(1)) - 1;
+	   		 int indexA = Integer.parseInt(a.substring(1)) - 1;
+	   		 double d = regFile.get(indexj).getValue()-Integer.parseInt(vk);
+	   		 regFileI.get(indexA).setValue(d);
+    	}else if(op.equals("BEQ")) {
+    		int indexj = Integer.parseInt(vj.substring(1)) - 1;//source 2
+	   		int indexA = Integer.parseInt(a.substring(1)) - 1;//source 1
+	   		if(regFileI.get(indexA).getValue()==regFileI.get(indexj).getValue()) {
+	   			System.out.println("went to pc "+vk);
+	   		}
+    	}else if(op.equals("BNE")) {
+    		int indexj = Integer.parseInt(vj.substring(1)) - 1;//source 2
+	   		int indexA = Integer.parseInt(a.substring(1)) - 1;//source 1
+	   		if(regFileI.get(indexA).getValue()!=regFileI.get(indexj).getValue()) {
+	   			System.out.println("went to pc "+vk);
+	   		}
+    	}
+    	 table.get(pos).setIssue(clockCycle);
+    	 table.get(pos).setExecutionStart(clockCycle);
+    	 table.get(pos).setExecutionEnd(clockCycle);
+    	 table.get(pos).setWriteBack(clockCycle);
+    	 
+   
+    	 
+    }
+    
+
+        
 
 
 
